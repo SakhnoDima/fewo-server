@@ -1,5 +1,6 @@
 import cron from "node-cron";
 import dotenv from "dotenv";
+import { ScrappingService } from "./scrapping/ScrappingService.js";
 
 dotenv.config();
 
@@ -31,9 +32,10 @@ class TaskSchedulerService {
 
   async runTasksSequentially() {
     for (const key in this.tasks) {
-      const task = this.tasks[key]; // this is url
+      const url = this.tasks[key]; // this is url
       try {
         console.log(`Running task: ${key}`);
+        await ScrappingService(url);
       } catch (error) {
         console.error(`Error in task ${key}:`, error);
         console.log("CRAWLER ERROR! Check logs");
