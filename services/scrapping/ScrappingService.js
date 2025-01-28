@@ -127,7 +127,7 @@ export const ScrappingService = async (url) => {
         itemData["Primary Title"] = info.unitTitle;
         itemData["Secondary Title"] = info.secondaryTitle;
         itemData["Description"] = info.description.unit.content;
-        itemData["Price per Night"] = Math.floor(
+        itemData["Price per Night"] = Math.ceil(
           info.price.rawPrice / exchangeRate
         );
         itemData["Location"] = info.locationTrailHeading.details;
