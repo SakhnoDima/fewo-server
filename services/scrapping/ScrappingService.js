@@ -198,7 +198,7 @@ export const ScrappingService = async (url) => {
             })
             .join("; ");
         }
-        //console.log(itemData); // send data to the site
+        console.log(itemData); // send data to the site
 
         await delayer(1000);
       }
