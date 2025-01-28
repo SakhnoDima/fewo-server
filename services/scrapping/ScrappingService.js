@@ -115,7 +115,7 @@ export const ScrappingService = async (url) => {
 
   try {
     if (homesIdList.length > 0) {
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < 1; i++) {
         //! dont forget to change
         console.log(i);
         const info = await getHomeDetails(homesIdList[i]);
