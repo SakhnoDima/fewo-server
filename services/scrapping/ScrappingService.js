@@ -119,7 +119,7 @@ export const ScrappingService = async (url) => {
         //! dont forget to change
         console.log(i);
         const info = await getHomeDetails(homesIdList[i]);
-        // console.log(info);
+        console.log(info);
         const itemData = {
           Id: homesIdList[i],
         };
@@ -198,7 +198,7 @@ export const ScrappingService = async (url) => {
             })
             .join("; ");
         }
-        console.log(itemData); // send data to the site
+        //console.log(itemData); // send data to the site
 
         await delayer(1000);
       }
@@ -208,4 +208,4 @@ export const ScrappingService = async (url) => {
   }
 };
 
-//ScrappingService("https://www.hometogo.de/search/5460aecab790d");
+ScrappingService("https://www.hometogo.de/search/5460aecab790d");
