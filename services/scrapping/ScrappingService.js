@@ -1,7 +1,11 @@
 import axios from "axios";
 import FormData from "form-data";
 import { delayer } from "../../assistants/helpers.js";
-import { getExchangeRate } from "./utils/index.js";
+import {
+  createListing,
+  findClosestCombination,
+  getExchangeRate,
+} from "./utils/index.js";
 
 const urlList = {
   germany: "https://www.hometogo.de/search/5460aecab790d",
@@ -82,8 +86,14 @@ const getReviewsById = async (id) => {
         "Content-Type": "application/json",
       },
     });
-
-    return response.data.list
+    let review_average_total = 0;
+    if (response.data.list.length === 0)
+      return {
+        reviews: [],
+        ratingsStats: [0, 0, 0, 0, 0],
+      };
+    const resultList = response.data.list
+      .slice(0, 20)
       .map((item) => {
         if (
           !item.nickname ||
@@ -93,11 +103,30 @@ const getReviewsById = async (id) => {
           item.text.trim().length === 0
         ) {
           return "";
-        } else
-          return `guestName: ${item.nickname}, starRating: ${item.rating.value}, reviewText: ${item.text}`;
+        } else {
+          review_average_total += Number(item.rating.value);
+          return {
+            name: item.nickname,
+            average: item.rating.value,
+            text: item.text,
+            reviewDate: item.rawDate,
+
+            ratings: findClosestCombination(item.rating.value),
+          };
+        }
       })
-      .filter(Boolean)
-      .join("; ");
+      .filter(Boolean);
+
+    return {
+      ratingsStats: findClosestCombination(
+        parseFloat((review_average_total / resultList.length).toFixed(2))
+      ),
+      reviewCount: resultList.length,
+      reviewAverage: parseFloat(
+        (review_average_total / resultList.length).toFixed(2)
+      ),
+      reviews: JSON.stringify(resultList, null, 2),
+    };
   } catch (error) {
     console.log(
       `Error in getReviewsById with ${id}`,
@@ -107,7 +136,7 @@ const getReviewsById = async (id) => {
 };
 
 export const ScrappingService = async (url) => {
-  const exchangeRate = await getExchangeRate("USD");
+  const exchangeRate = 2;
   console.log("Rate:", exchangeRate);
 
   const homesIdList = await getHomeList(url);
@@ -115,37 +144,40 @@ export const ScrappingService = async (url) => {
 
   try {
     if (homesIdList.length > 0) {
-      for (let i = 0; i < 1; i++) {
+      for (let i = 0; i < 2; i++) {
         //! dont forget to change
         console.log(i);
         const info = await getHomeDetails(homesIdList[i]);
-        console.log(info);
+        //console.log(info);
+
         const itemData = {
-          Id: homesIdList[i],
+          listing_type: "380",
+          post_id: homesIdList[i],
+          taxonomy: "rz_listing_category",
+          terms: ["example-category"],
+          meta: {
+            rz_listing_type: "380",
+          },
         };
 
-        itemData["Primary Title"] = info.unitTitle;
-        itemData["Secondary Title"] = info.secondaryTitle;
-        itemData["Description"] = info.description.unit.content;
-        itemData["Price per Night"] = Math.ceil(
-          info.price.rawPrice / exchangeRate
-        );
-        itemData["Location"] = info.locationTrailHeading.details;
-        itemData[
-          "Coordinates"
-        ] = `${info.geoLocation.lat},  ${info.geoLocation.lon}`;
+        itemData.meta.rz_post_title_heading = info.unitTitle;
+        itemData.title = info.secondaryTitle;
+        itemData.content = info.description.unit.content;
+        itemData.meta.rz_price = Math.ceil(info.price.rawPrice / exchangeRate);
+        (itemData.meta.rz_location__lat = info.geoLocation.lat),
+          (itemData.meta.rz_location__lng = info.geoLocation.lon),
+          (itemData.meta.rz_location = [
+            info.locationTrailHeading.details,
+            info.geoLocation.lat,
+            info.geoLocation.lon,
+          ]);
 
-        itemData["Location Details"] = info.infoGroups
-          .find((group) => group.title === "In der Nähe")
-          .list.map((item) => {
-            if (item.icon) {
-              return `label: ${item.label}, icon : ${item.icon}`;
-            }
-            return `label: ${item.label}`;
-          })
-          .join("; ");
+        itemData.meta.rz_location_details = info.infoGroups.find(
+          (group) => group.title === "In der Nähe"
+        ).list;
+        console.log(itemData.meta.rz_location_details);
 
-        itemData["Benefits"] = info.salesArguments
+        itemData.meta.rz_benefits = info.salesArguments
           .filter((item) => item.slot === 10000000)
           .map((item) => {
             if (
@@ -153,15 +185,19 @@ export const ScrappingService = async (url) => {
               item.props.label ||
               item.props.propertyHighlightText
             ) {
-              return `icon: ${item.props.icon}, label: ${item.props.label}, text: ${item.props.propertyHighlightText}`;
+              return {
+                icon: item.props.icon,
+                label: item.props.label,
+                text: item.props.propertyHighlightText,
+              };
             } else return "";
           })
-          .filter(Boolean)
-          .join("; ");
+          .filter(Boolean);
 
-        itemData["Image URLs"] = info.images
-          .map(({ large }) => `https:${large}`)
-          .join("; ");
+        const urls = info.images.map(({ large }) => {
+          return { id: `https:${large}` };
+        });
+        itemData.meta.rz_gallery = JSON.stringify(urls, null, 2);
 
         let equipment = [];
         info.infoGroups.map((group) => {
@@ -170,36 +206,54 @@ export const ScrappingService = async (url) => {
             group.title === "Außenbereiche"
           ) {
             group.list.forEach((item) => {
-              equipment.push(`label: ${item.label}, icon: ${item.icon}`);
+              equipment.push({ label: item.label, icon: item.icon });
             });
           }
         });
-        itemData["Equipment"] = equipment.join("; ");
 
-        // get reviews
-        itemData["Reviews"] = await getReviewsById(homesIdList[i]);
+        itemData.meta.rz_equipment_set = JSON.stringify(equipment, null, 2);
 
-        //get rooms details
-        if (info.rooms.length > 0) {
-          itemData["Rooms"] = info.rooms
-            .map((room) => {
-              if (
-                !room.roomType ||
-                !room.beds ||
-                !room.properties ||
-                !room.icons
-              ) {
-                return "";
-              } else
-                return `title:${room.roomType}, properties: ${[
-                  ...room.beds,
-                  ...room.properties,
-                ]}, icons: ${room.icons}`;
-            })
-            .join("; ");
-        }
-        console.log(itemData); // send data to the site
+        //get reviews
+        const reviewsDates = await getReviewsById(homesIdList[i]);
+        itemData.comments = reviewsDates.reviews;
+        itemData.meta.rz_review_count = reviewsDates.reviewCount;
+        itemData.meta.rz_review_average = reviewsDates.reviewAverage;
+        itemData.meta.rz_review_rating_average_cleanliness =
+          reviewsDates.ratingsStats[0];
+        itemData.meta.rz_review_rating_average_communication =
+          reviewsDates.ratingsStats[1];
+        itemData.meta["rz_review_rating_average_check-in"] =
+          reviewsDates.ratingsStats[2];
+        itemData.meta.rz_review_rating_average_accuracy =
+          reviewsDates.ratingsStats[3];
+        itemData.meta.rz_review_rating_average_location =
+          reviewsDates.ratingsStats[4];
+        itemData.meta.rz_review_rating_average_value =
+          reviewsDates.reviewAverage;
 
+        console.log(reviewsDates.reviews);
+
+        // //get rooms details
+        // if (info.rooms.length > 0) {
+        //   itemData["Rooms"] = info.rooms
+        //     .map((room) => {
+        //       if (
+        //         !room.roomType ||
+        //         !room.beds ||
+        //         !room.properties ||
+        //         !room.icons
+        //       ) {
+        //         return "";
+        //       } else
+        //         return `title:${room.roomType}, properties: ${[
+        //           ...room.beds,
+        //           ...room.properties,
+        //         ]}, icons: ${room.icons}`;
+        //     })
+        //     .join("; ");
+        // }
+        //console.log(itemData); // send data to the site
+        await createListing("https://fewo.down4sure.band-it.space/", itemData);
         await delayer(1000);
       }
     }
