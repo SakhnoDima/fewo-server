@@ -260,4 +260,4 @@ export const ScrappingService = async (url) => {
   }
 };
 
-ScrappingService("https://www.hometogo.de/search/5460aecab790d");
+//ScrappingService("https://www.hometogo.de/search/5460aecab790d");
