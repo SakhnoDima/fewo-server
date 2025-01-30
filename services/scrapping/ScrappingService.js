@@ -160,10 +160,13 @@ export const ScrappingService = async (url) => {
         itemData.meta.rz_location__lat = info.geoLocation.lat;
         itemData.meta.rz_location__lng = info.geoLocation.lon;
         itemData.meta.rz_location = [
-          info.locationTrailHeading.details,
+          info.locationTrailHeading.search,
           info.geoLocation.lat,
           info.geoLocation.lon,
         ];
+        itemData.meta.rz_location_city = info.locationTrailHeading.search
+          .split(",")[0]
+          .trim();
 
         //get location details
         itemData.meta.rz_location_details = info.infoGroups.find(
