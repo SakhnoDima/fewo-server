@@ -3,24 +3,6 @@ import FormData from "form-data";
 import { delayer } from "../../assistants/helpers.js";
 import { createListing, findClosestCombination } from "./utils/index.js";
 
-const urlList = {
-  germany: "https://www.hometogo.de/search/5460aecab790d",
-
-  balticSea: "https://www.hometogo.de/search/5460aeb204e17",
-
-  northSea: "https://www.hometogo.de/search/5460aecb5d3a1",
-
-  italy: "https://www.hometogo.de/search/5460aeae078f7",
-
-  croatia: "https://www.hometogo.de/search/5460aeaaa3139",
-
-  netherlands: "https://www.hometogo.de/search/5460aed303689",
-
-  denmark: "https://www.hometogo.de/search/5460aeb07b41a",
-
-  spain: "https://www.hometogo.de/search/5460aeae487f8",
-};
-
 // Get all ids, we always have 300 items
 const getHomeList = async (url) => {
   try {
@@ -137,11 +119,9 @@ export const ScrappingService = async (url) => {
 
   try {
     if (homesIdList.length > 0) {
-      for (let i = 0; i < 10; i++) {
-        //! dont forget to change
+      for (let i = 0; i < homesIdList.length; i++) {
         console.log(i);
         const info = await getHomeDetails(homesIdList[i]);
-        //console.log(info);
 
         const itemData = {
           listing_type: "380",

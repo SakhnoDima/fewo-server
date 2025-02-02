@@ -24,14 +24,17 @@ export const addUrl = (req, res) => {
       });
       return;
     }
-    if (!status && scrappingScheduler.tasks[location]) {
+
+    const existingLocation = scrappingScheduler.getTask(location);
+
+    if (!status && existingLocation) {
       scrappingScheduler.removeUrl(location);
       results.push({
         location,
         status: STATUS.success,
         message: `Scraping for ${location} stopped!`,
       });
-    } else if (status && !scrappingScheduler.tasks[location]) {
+    } else if (status && !existingLocation) {
       scrappingScheduler.addUrl(location, url);
       results.push({
         location,
