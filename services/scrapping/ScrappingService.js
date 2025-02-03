@@ -237,7 +237,7 @@ export const ScrappingService = async (url) => {
       }
 
       //console.log(itemData); // send data to the site
-      await createListing("https://fewo.down4sure.band-it.space/", itemData);
+      await createListing("http://fewo.down4sure.band-it.space/", itemData);
       await delayer(500);
     } catch (error) {
       console.log("Error in scrapping:", error.response?.data || error.message);
@@ -245,4 +245,6 @@ export const ScrappingService = async (url) => {
   }
 };
 
-//ScrappingService("https://www.hometogo.de/search/5460aecab790d");
+// ScrappingService(
+//   "https://www.hometogo.de/search/5460aecab790d?bounds=45.88313%2C10.57633%3B45.48691%2C11.27671"
+// );
