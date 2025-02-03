@@ -13,6 +13,8 @@ export const addUrl = (req, res) => {
 
   const results = [];
 
+  scrappingScheduler.removeAllTasks();
+
   req.body.forEach((element) => {
     const { location, url, status } = element;
 

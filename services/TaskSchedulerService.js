@@ -20,6 +20,10 @@ class TaskSchedulerService {
     this.#timezone = timezone;
   }
 
+  removeAllTasks() {
+    this.#tasks = {};
+  }
+
   getTask(location) {
     return this.#tasks[location] || null;
   }

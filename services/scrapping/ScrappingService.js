@@ -117,129 +117,131 @@ export const ScrappingService = async (url) => {
   const homesIdList = await getHomeList(url);
   console.log("Total homes found:", homesIdList.length);
 
-  try {
-    if (homesIdList.length > 0) {
-      for (let i = 0; i < homesIdList.length; i++) {
-        console.log(i);
-        const info = await getHomeDetails(homesIdList[i]);
+  if (homesIdList.length > 0) {
+    console.log(`Location by ${url} don't have any results`);
+    return;
+  }
 
-        const itemData = {
-          listing_type: "380",
-          post_id: homesIdList[i],
-          taxonomy: "rz_listing_category",
-          terms: ["example-category"],
-          meta: {
-            rz_listing_type: "380",
-          },
-        };
+  for (let i = 0; i < homesIdList.length; i++) {
+    try {
+      console.log(i);
+      const info = await getHomeDetails(homesIdList[i]);
 
-        itemData.meta.rz_post_title_heading = info.unitTitle;
-        itemData.title = info.secondaryTitle;
-        itemData.content = info.description.unit.content;
-        itemData.meta.rz_price = info.price.totalRawEur / 7;
-        itemData.meta.rz_location__lat = info.geoLocation.lat;
-        itemData.meta.rz_location__lng = info.geoLocation.lon;
-        itemData.meta.rz_location = [
-          info.locationTrailHeading.search,
-          info.geoLocation.lat,
-          info.geoLocation.lon,
-        ];
-        itemData.meta.rz_location_city = info.locationTrailHeading.search
-          .split(",")[0]
-          .trim();
+      const itemData = {
+        listing_type: "380",
+        post_id: homesIdList[i],
+        taxonomy: "rz_listing_category",
+        terms: ["example-category"],
+        meta: {
+          rz_listing_type: "380",
+        },
+      };
 
-        //get location details
-        itemData.meta.rz_location_details = info.infoGroups.find(
-          (group) => group.title === "In der Nähe"
-        ).list;
+      itemData.meta.rz_post_title_heading = info.unitTitle;
+      itemData.title = info.secondaryTitle;
+      itemData.content = info.description.unit.content;
+      itemData.meta.rz_price = info.price.totalRawEur / 7;
+      itemData.meta.rz_location__lat = info.geoLocation.lat;
+      itemData.meta.rz_location__lng = info.geoLocation.lon;
+      itemData.meta.rz_location = [
+        info.locationTrailHeading.search,
+        info.geoLocation.lat,
+        info.geoLocation.lon,
+      ];
+      itemData.meta.rz_location_city = info.locationTrailHeading.search
+        .split(",")[0]
+        .trim();
 
-        // get benefits
-        const benefitsData = info.salesArguments
-          .filter((item) => item.slot === 10000000)
-          .map((item) => {
+      //get location details
+      itemData.meta.rz_location_details = info.infoGroups.find(
+        (group) => group.title === "In der Nähe"
+      ).list;
+
+      // get benefits
+      const benefitsData = info.salesArguments
+        .filter((item) => item.slot === 10000000)
+        .map((item) => {
+          if (
+            item.props.icon ||
+            item.props.label ||
+            item.props.propertyHighlightText
+          ) {
+            return {
+              icon: item.props.icon,
+              label: item.props.label,
+              text: item.props.propertyHighlightText,
+            };
+          } else return "";
+        })
+        .filter(Boolean);
+      itemData.meta.rz_benefits = JSON.stringify(benefitsData, null, 2);
+
+      // get images
+      const urls = info.images.map(({ large }) => {
+        return { id: `https:${large}` };
+      });
+      itemData.meta.rz_gallery = JSON.stringify(urls, null, 2);
+
+      // get equipment
+      let equipment = [];
+      info.infoGroups.map((group) => {
+        if (
+          group.title === "Wichtige Ausstattung" ||
+          group.title === "Außenbereiche"
+        ) {
+          group.list.forEach((item) => {
+            equipment.push({ label: item.label, icon: item.icon });
+          });
+        }
+      });
+      itemData.meta.rz_equipment_set = JSON.stringify(equipment, null, 2);
+
+      //get reviews
+      const reviewsDates = await getReviewsById(homesIdList[i]);
+      itemData.comments = reviewsDates.reviews;
+      itemData.meta.rz_review_count = reviewsDates.reviewCount;
+      itemData.meta.rz_review_average = reviewsDates.reviewAverage;
+      itemData.meta.rz_review_rating_average_cleanliness =
+        reviewsDates.ratingsStats[0];
+      itemData.meta.rz_review_rating_average_communication =
+        reviewsDates.ratingsStats[1];
+      itemData.meta["rz_review_rating_average_check-in"] =
+        reviewsDates.ratingsStats[2];
+      itemData.meta.rz_review_rating_average_accuracy =
+        reviewsDates.ratingsStats[3];
+      itemData.meta.rz_review_rating_average_location =
+        reviewsDates.ratingsStats[4];
+      itemData.meta.rz_review_rating_average_value = reviewsDates.reviewAverage;
+
+      //get rooms details
+      if (info.rooms.length > 0) {
+        const roomsData = info.rooms
+          .map((room) => {
             if (
-              item.props.icon ||
-              item.props.label ||
-              item.props.propertyHighlightText
+              !room.roomType ||
+              !room.beds ||
+              !room.properties ||
+              !room.icons
             ) {
+              return "";
+            } else
               return {
-                icon: item.props.icon,
-                label: item.props.label,
-                text: item.props.propertyHighlightText,
+                title: room.roomType,
+                properties: [...room.beds, ...room.properties],
+                icons: room.icons,
               };
-            } else return "";
           })
           .filter(Boolean);
-        itemData.meta.rz_benefits = JSON.stringify(benefitsData, null, 2);
 
-        // get images
-        const urls = info.images.map(({ large }) => {
-          return { id: `https:${large}` };
-        });
-        itemData.meta.rz_gallery = JSON.stringify(urls, null, 2);
-
-        // get equipment
-        let equipment = [];
-        info.infoGroups.map((group) => {
-          if (
-            group.title === "Wichtige Ausstattung" ||
-            group.title === "Außenbereiche"
-          ) {
-            group.list.forEach((item) => {
-              equipment.push({ label: item.label, icon: item.icon });
-            });
-          }
-        });
-        itemData.meta.rz_equipment_set = JSON.stringify(equipment, null, 2);
-
-        //get reviews
-        const reviewsDates = await getReviewsById(homesIdList[i]);
-        itemData.comments = reviewsDates.reviews;
-        itemData.meta.rz_review_count = reviewsDates.reviewCount;
-        itemData.meta.rz_review_average = reviewsDates.reviewAverage;
-        itemData.meta.rz_review_rating_average_cleanliness =
-          reviewsDates.ratingsStats[0];
-        itemData.meta.rz_review_rating_average_communication =
-          reviewsDates.ratingsStats[1];
-        itemData.meta["rz_review_rating_average_check-in"] =
-          reviewsDates.ratingsStats[2];
-        itemData.meta.rz_review_rating_average_accuracy =
-          reviewsDates.ratingsStats[3];
-        itemData.meta.rz_review_rating_average_location =
-          reviewsDates.ratingsStats[4];
-        itemData.meta.rz_review_rating_average_value =
-          reviewsDates.reviewAverage;
-
-        //get rooms details
-        if (info.rooms.length > 0) {
-          const roomsData = info.rooms
-            .map((room) => {
-              if (
-                !room.roomType ||
-                !room.beds ||
-                !room.properties ||
-                !room.icons
-              ) {
-                return "";
-              } else
-                return {
-                  title: room.roomType,
-                  properties: [...room.beds, ...room.properties],
-                  icons: room.icons,
-                };
-            })
-            .filter(Boolean);
-
-          itemData.meta.rz_data_rooms = JSON.stringify(roomsData, null, 2);
-        }
-
-        //console.log(itemData); // send data to the site
-        await createListing("https://fewo.down4sure.band-it.space/", itemData);
-        await delayer(1000);
+        itemData.meta.rz_data_rooms = JSON.stringify(roomsData, null, 2);
       }
+
+      //console.log(itemData); // send data to the site
+      await createListing("https://fewo.down4sure.band-it.space/", itemData);
+      await delayer(1000);
+    } catch (error) {
+      console.log("Error in scrapping:", error.response?.data || error.message);
     }
-  } catch (error) {
-    console.log("Error in main:", error.response?.data || error.message);
   }
 };
 
