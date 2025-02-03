@@ -117,7 +117,7 @@ export const ScrappingService = async (url) => {
   const homesIdList = await getHomeList(url);
   console.log("Total homes found:", homesIdList.length);
 
-  if (homesIdList.length > 0) {
+  if (homesIdList.length === 0) {
     console.log(`Location by ${url} don't have any results`);
     return;
   }
