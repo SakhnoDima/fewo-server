@@ -15,7 +15,7 @@ export async function createListing(url, data) {
 
     console.log("Response:", response.data);
 
-    await delayer(1000);
+    await delayer(500);
   } catch (error) {
     console.error(
       "Error:",
